@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esercitazione Kubernetes: Service Discovery</title>
+</head>
+<body>
+    <h1>Esercitazione Kubernetes: Service Discovery</h1>
+    <p>Questa esercitazione pratica ti guiderà attraverso i concetti di base e la configurazione per la scoperta dei servizi all’interno di un cluster Kubernetes.</p>
+
+    <h2>Obiettivi</h2>
+    <ul>
+        <li>Comprendere come funziona il <strong>Service Discovery</strong> in Kubernetes.</li>
+        <li>Creare un cluster con Pod e Service.</li>
+        <li>Configurare la scoperta dei servizi per consentire ai Pod di comunicare facilmente tra loro.</li>
+    </ul>
+
+    <h2>Prerequisiti</h2>
+    <ul>
+        <li>Accesso a un cluster Kubernetes (ad esempio, Minikube o un cluster cloud).</li>
+        <li>Installazione di <code>kubectl</code> per interagire con il cluster.</li>
+    </ul>
+
+    <h2>Parte 1: Comprendere il Service Discovery in Kubernetes</h2>
+    <p>In Kubernetes, ogni Service viene automaticamente registrato all’interno di un DNS locale. Ciò consente ai Pod di scoprire e comunicare tra loro utilizzando nomi DNS senza dover configurare IP statici.</p>
+
+    <h2>Parte 2: Creazione dei Pod</h2>
+    <ol>
+        <li><strong>Crea due file di configurazione per i Pod</strong>, ad esempio per un'applicazione server e un'applicazione client.</li>
+        <ul>
+            <li>File <code>server-pod.yaml</code>:</li>
+            <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: server-pod
+  labels:
+    app: server
+spec:
+  containers:
+  - name: server
+    image: nginx
+    ports:
+    - containerPort: 80
+</code></pre>
+            <li>File <code>client-pod.yaml</code>:</li>
+            <pre><code>apiVersion: v1
+kind: Pod
+metadata:
+  name: client-pod
+  labels:
+    app: client
+spec:
+  containers:
+  - name: client
+    image: appropriate/curl
+    command: ["sleep", "3600"]
+</code></pre>
+        </ul>
+
+        <li><strong>Crea i Pod</strong> usando i file di configurazione:</li>
+        <pre><code>kubectl apply -f server-pod.yaml
+kubectl apply -f client-pod.yaml</code></pre>
+
+        <li><strong>Verifica che i Pod siano in esecuzione</strong>:</li>
+        <pre><code>kubectl get pods</code></pre>
+    </ol>
+
+    <h2>Parte 3: Creazione di un Service per il Server</h2>
+    <ol>
+        <li><strong>Crea un file di configurazione per il Service</strong> chiamato <code>server-service.yaml</code>:</li>
+        <pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+spec:
+  selector:
+    app: server
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+</code></pre>
+
+        <li><strong>Applica la configurazione del Service</strong> per creare il servizio:</li>
+        <pre><code>kubectl apply -f server-service.yaml</code></pre>
+
+        <li><strong>Verifica che il Service sia stato creato</strong>:</li>
+        <pre><code>kubectl get services</code></pre>
+    </ol>
+
+    <h2>Parte 4: Verifica della Scoperta dei Servizi</h2>
+    <ol>
+        <li><strong>Accedi al Pod client</strong> per simulare una richiesta al server usando il nome DNS del Service:</li>
+        <pre><code>kubectl exec -it client-pod -- curl http://server-service</code></pre>
+        <p>Se il service discovery è configurato correttamente, dovresti vedere la pagina di benvenuto di Nginx.</p>
+    </ol>
+
+    <h2>Parte 5: Comprendere i Nomi DNS per i Service</h2>
+    <p>Kubernetes assegna a ciascun Service un nome DNS all'interno del cluster. Il formato del nome DNS per un Service è:</p>
+    <pre><code>&lt;NOME-SERVICE&gt;.&lt;NAMESPACE&gt;.svc.cluster.local</code></pre>
+
+    <ol>
+        <li><strong>Verifica il nome DNS del Service server</strong>:</li>
+        <pre><code>kubectl exec -it client-pod -- curl http://server-service.default.svc.cluster.local</code></pre>
+    </ol>
+
+    <h2>Parte 6: Utilizzare i Service con IP Esterni (facoltativo)</h2>
+    <ol>
+        <li>Se desideri esporre il servizio all'esterno del cluster, cambia il tipo di Service da <code>ClusterIP</code> a <code>NodePort</code> o <code>LoadBalancer</code>.</li>
+        <li><strong>Modifica il file <code>server-service.yaml</code></strong> per il Service esterno:</li>
+        <pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+spec:
+  selector:
+    app: server
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 30008
+  type: NodePort
+</code></pre>
+
+        <li><strong>Applica la modifica</strong>:</li>
+        <pre><code>kubectl apply -f server-service.yaml</code></pre>
+
+        <li><strong>Trova l’indirizzo IP del nodo</strong> (ad esempio con <code>minikube ip</code>) e accedi al Service:</li>
+        <pre><code>http://&lt;node-ip&gt;:30008</code></pre>
+    </ol>
+
+    <h2>Parte 7: Pulizia</h2>
+    <ol>
+        <li><strong>Verifica lo stato dei Pod e dei Service</strong>:</li>
+        <pre><code>kubectl get pods
+kubectl get services</code></pre>
+
+        <li><strong>Elimina i Pod e i Service</strong> al termine:</li>
+        <pre><code>kubectl delete -f server-pod.yaml
+kubectl delete -f client-pod.yaml
+kubectl delete -f server-service.yaml</code></pre>
+    </ol>
+
+    <h2>Conclusione</h2>
+    <p>Questa esercitazione ha mostrato come utilizzare il service discovery di Kubernetes per permettere ai Pod di comunicare tra loro tramite nomi DNS, sfruttando i Service per gestire le comunicazioni interne ed esterne al cluster.</p>
+</body>
+</html>
